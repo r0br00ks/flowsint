@@ -1,10 +1,15 @@
-# Upstream flowsint-api image plus the openai SDK, which the image does not ship.
-# Flo (the AI assistant) reaches MiniMax through Flowsint's OpenAI provider, which needs it.
-# patch_think.py then strips MiniMax's <think> blocks from non-streamed replies.
+# Upstream flowsint-api image plus the changes this deployment needs:
+#  - the openai SDK, which the image does not ship (Flo reaches MiniMax through Flowsint's OpenAI provider)
+#  - patch_think.py strips MiniMax's <think> blocks from non-streamed replies
+#  - overlay/ adds enrichers for the tools on dockerops (SpiderFoot, AbuseBox, HexBrain, DefectDojo) and the
+#    Cve and Finding entity types; patch_categories.py lists those types in the UI picker
+# Used by both the api and celery services so enrichers (which run in celery) see the same code.
 ARG FLOWSINT_VERSION=1.2.13
 FROM ghcr.io/reconurge/flowsint-api:${FLOWSINT_VERSION}
 USER root
 RUN pip --python /app/.venv/bin/python install --no-cache-dir openai==3.51.0
-COPY patch_think.py /tmp/patch_think.py
-RUN /app/.venv/bin/python /tmp/patch_think.py && rm /tmp/patch_think.py
+COPY patch_think.py patch_categories.py /tmp/
+RUN /app/.venv/bin/python /tmp/patch_think.py && /app/.venv/bin/python /tmp/patch_categories.py && rm /tmp/patch_think.py /tmp/patch_categories.py
+COPY overlay/enrichers/ /app/flowsint-enrichers/src/flowsint_enrichers/
+COPY overlay/types/ /app/flowsint-types/src/flowsint_types/
 USER flowsint
