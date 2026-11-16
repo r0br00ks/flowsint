@@ -73,9 +73,14 @@ services:
       - AUTH_SECRET=${FLOWSINT_AUTH_SECRET:?set in Coolify}
       - MASTER_VAULT_KEY_V1=${FLOWSINT_MASTER_VAULT_KEY:?set in Coolify}
       - REDIS_URL=redis://redis:6379/0
-      # Flo (the AI assistant) uses Mistral. With no per-user vault key, Flowsint falls back to this.
-      - LLM_PROVIDER=mistral
-      - MISTRAL_API_KEY=${FLOWSINT_MISTRAL_API_KEY:-}
+      # Flo (the AI assistant) runs on MiniMax through Flowsint's OpenAI provider; the openai SDK
+      # reads OPENAI_BASE_URL itself. With no per-user OPENAI_API_KEY in the vault, Flowsint falls
+      # back to OPENAI_API_KEY here. The chat UI separately needs a vault key named MISTRAL_API_KEY
+      # to count as active (see 01_CURRENT-STATE.md).
+      - LLM_PROVIDER=openai
+      - OPENAI_API_KEY=${FLOWSINT_LLM_API_KEY:-}
+      - OPENAI_BASE_URL=${FLOWSINT_LLM_BASE_URL:-https://api.minimax.io/v1}
+      - LLM_MODEL=${FLOWSINT_LLM_MODEL:-MiniMax-M3}
     depends_on:
       postgres:
         condition: service_healthy
