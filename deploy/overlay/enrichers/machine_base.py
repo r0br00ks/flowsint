@@ -60,11 +60,13 @@ class MachineEnricher(ParamsEnricher):
 
     ROOT_STEPS: List[str] = []
     RULES: Dict[str, List[str]] = {}
+    # Per-step parameter overrides, e.g. keep archived-URL and code-search results small inside a machine.
+    STEP_PARAMS: Dict[str, Dict[str, str]] = {}
 
     @classmethod
     def get_params_schema(cls) -> List[Dict[str, Any]]:
         return [
-            {"name": "max_depth", "type": "string", "description": "How many levels of enrichment to follow from the starting node.", "required": False, "default": "3"},
+            {"name": "max_depth", "type": "string", "description": "How many levels of enrichment to follow from the starting node. 4 reaches CVEs and your own findings for them.", "required": False, "default": "4"},
             {"name": "max_per_type", "type": "string", "description": "At most this many new entities of each type move on to the next level.", "required": False, "default": "12"},
             {
                 "name": "skip_cdn_ips",
@@ -89,7 +91,7 @@ class MachineEnricher(ParamsEnricher):
     async def _run_step(self, sem: asyncio.Semaphore, name: str, item: Any) -> Tuple[str, Any, List[Any]]:
         async with sem:
             try:
-                sub = ENRICHER_REGISTRY.get_enricher(name, self.sketch_id, self.scan_id, vault=self.vault, params={})
+                sub = ENRICHER_REGISTRY.get_enricher(name, self.sketch_id, self.scan_id, vault=self.vault, params=dict(self.STEP_PARAMS.get(name, {})))
                 raw = await sub.execute([item.model_dump(mode="json")])
             except Exception as e:  # a failing step must not stop the machine
                 Logger.error(self.sketch_id, {"message": f"[machine] {name} failed: {e}"})
@@ -107,7 +109,7 @@ class MachineEnricher(ParamsEnricher):
         return name, item, outs
 
     async def run_machine(self, root: Any) -> Dict[str, Any]:
-        max_depth = int(float(self.params.get("max_depth") or 3))
+        max_depth = int(float(self.params.get("max_depth") or 4))
         cap = int(float(self.params.get("max_per_type") or 12))
         skip_cdn = str(self.params.get("skip_cdn_ips") or "yes") == "yes"
         nets = await cdn_networks() if skip_cdn else []

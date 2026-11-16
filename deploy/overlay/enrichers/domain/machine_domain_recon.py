@@ -13,10 +13,11 @@ class MachineDomainRecon(MachineEnricher):
     OutputType = Domain
     ROOT_STEPS = [
         "domain_to_dns_records_doh", "domain_to_ip", "domain_to_email_security", "domain_to_subdomains_passive",
-        "domain_to_otx", "domain_to_blacklist_abusebox", "domain_to_whois", "domain_to_website",
+        "domain_to_otx", "domain_to_blacklist_abusebox", "domain_to_whois_rdap", "domain_to_website",
         "domain_to_wayback_urls", "domain_to_github_code",
     ]
     RULES = dict(SHARED_RULES, Domain=["domain_to_ip"])
+    STEP_PARAMS = {"domain_to_wayback_urls": {"max_results": "25"}, "domain_to_github_code": {"max_results": "15"}}
 
     @classmethod
     def name(cls) -> str:
