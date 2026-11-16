@@ -13,6 +13,15 @@ from flowsint_enrichers import dockerops_clients as dc
 from flowsint_types.reputation_score import ReputationScore
 
 
+def _list_name(hit: Any) -> str:
+    """AbuseBox reports hits as plain names for IPs and as objects (provider, name, severity) for domains."""
+    if isinstance(hit, dict):
+        name = hit.get("name") or hit.get("provider") or "unknown list"
+        sev = hit.get("severity")
+        return f"{name} ({sev})" if sev else str(name)
+    return str(hit)
+
+
 class AbuseBoxEnricher(Enricher):
     """Not registered itself; concrete enrichers subclass it and add @flowsint_enricher."""
 
@@ -51,7 +60,7 @@ class AbuseBoxEnricher(Enricher):
                 score=score,
                 score_type="dnsbl",
                 provider=f"AbuseBox DNSBL ({len(providers)} lists)",
-                factors=[f"listed on {x}" for x in listed] or None,
+                factors=[f"listed on {_list_name(x)}" for x in listed] or None,
                 category=res.get("severity"),
             )
             self.create_node(self.source_object(r["item"]))
