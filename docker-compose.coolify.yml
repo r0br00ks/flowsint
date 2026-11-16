@@ -148,6 +148,10 @@ services:
       - DEFECTDOJO_API_TOKEN=${FLOWSINT_DEFECTDOJO_API_TOKEN:-}
       - SHODAN_API_KEY=${FLOWSINT_SHODAN_API_KEY:-}
       - GITHUB_TOKEN=${FLOWSINT_GITHUB_TOKEN:-}
+      # Xalgorix scanner (worker only: enrichers run here). Copies of Bitwarden XALGORIX__USERNAME and XALGORIX__PASSWORD.
+      - XALGORIX_URL=${FLOWSINT_XALGORIX_URL:-http://100.93.251.35:2903}
+      - XALGORIX_USERNAME=${FLOWSINT_XALGORIX_USERNAME:-}
+      - XALGORIX_PASSWORD=${FLOWSINT_XALGORIX_PASSWORD:-}
     healthcheck:
       test: ["CMD-SHELL", "celery -A flowsint_core.core.celery inspect ping -d celery@$$HOSTNAME || exit 1"]
       interval: 30s
