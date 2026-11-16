@@ -10,9 +10,11 @@ Python enrichers are not subject to the template SSRF guard, so private and Tail
 
 import asyncio
 import html
+import json
 import os
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -85,19 +87,40 @@ async def sf_find_recent_scan(target: str, max_age_hours: float) -> Optional[str
     return best[1] if best else None
 
 
-async def sf_start_scan(target: str, mode: str) -> str:
-    """Start a SpiderFoot scan using one of its built-in use cases and return the scan id."""
-    if mode not in ("passive", "footprint", "investigate", "all"):
+_USECASES_FILE = Path(__file__).with_name("spiderfoot_usecases.json")
+_SF_MODES = {"passive": "Passive", "footprint": "Footprint", "investigate": "Investigate"}
+
+
+def _sf_usecase_modules(mode: str) -> List[str]:
+    """Modules SpiderFoot tags with this use case, exported from its source (SpiderFoot 4.0.0)."""
+    if mode not in _SF_MODES:
         raise ToolError(f"unknown SpiderFoot scan mode '{mode}'")
+    return json.loads(_USECASES_FILE.read_text())[_SF_MODES[mode]]
+
+
+async def sf_start_scan(target: str, mode: str) -> str:
+    """Start a SpiderFoot scan with the modules of one use case and return the scan id.
+
+    SpiderFoot's HTTP API does not expand use cases (only its web page does), so the module list is sent
+    explicitly, filtered to the modules this SpiderFoot actually has. The Accept header makes it answer in JSON.
+    """
+    wanted = _sf_usecase_modules(mode)
     async with _client() as c:
+        r = await c.get(f"{spiderfoot_url()}/modules", headers={"Accept": "application/json"})
+        r.raise_for_status()
+        have = {m["name"] for m in r.json()}
+        modules = [m for m in wanted if m in have]
+        if not modules:
+            raise ToolError(f"none of the {mode} modules exist on this SpiderFoot")
         r = await c.post(
             f"{spiderfoot_url()}/startscan",
+            headers={"Accept": "application/json"},
             data={
                 "scanname": f"flowsint: {target}",
                 "scantarget": target,
-                "usecase": mode,
-                "modulelist": "",
+                "modulelist": ",".join(modules),
                 "typelist": "",
+                "usecase": _SF_MODES[mode],
             },
         )
         r.raise_for_status()
