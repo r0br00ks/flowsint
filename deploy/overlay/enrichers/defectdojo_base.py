@@ -6,15 +6,15 @@ container). Only active, non-duplicate findings are returned by default.
 
 from typing import Any, Dict, List, Optional
 
-from flowsint_core.core.enricher_base import Enricher
 from flowsint_core.core.logger import Logger
 from flowsint_enrichers import dockerops_clients as dc
+from flowsint_enrichers.osint_base import ParamsEnricher
 from flowsint_types.finding import Finding
 
 SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
 
 
-class DefectDojoEnricher(Enricher):
+class DefectDojoEnricher(ParamsEnricher):
     """Not registered itself; concrete enrichers subclass it and add @flowsint_enricher."""
 
     @classmethod

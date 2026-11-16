@@ -8,12 +8,12 @@ A finished scan of the same target is reused for `reuse_hours` so repeated click
 
 from typing import Any, Dict, List, Optional
 
-from flowsint_core.core.enricher_base import Enricher
 from flowsint_core.core.logger import Logger
 from flowsint_enrichers import dockerops_clients as dc
+from flowsint_enrichers.osint_base import ParamsEnricher
 
 
-class SpiderFootEnricher(Enricher):
+class SpiderFootEnricher(ParamsEnricher):
     """Not registered itself; concrete enrichers subclass it and add @flowsint_enricher."""
 
     EVENT_TYPES: List[str] = []

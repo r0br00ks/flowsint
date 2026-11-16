@@ -11,9 +11,28 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from flowsint_core.core.enricher_base import Enricher
 from flowsint_core.core.logger import Logger
+from flowsint_core.core.vault import VaultProtocol
 
 
-class FetchEnricher(Enricher):
+class ParamsEnricher(Enricher):
+    """Hands get_params_schema() to the base class.
+
+    Flowsint keeps only the run parameters named in the schema given to Enricher.__init__ and drops the rest.
+    An enricher that declares parameters but does not pass the schema silently ignores every value set in the UI.
+    """
+
+    def __init__(
+        self,
+        sketch_id: Optional[str] = None,
+        scan_id: Optional[str] = None,
+        vault: Optional[VaultProtocol] = None,
+        params: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ):
+        super().__init__(sketch_id=sketch_id, scan_id=scan_id, params_schema=self.get_params_schema(), vault=vault, params=params, **kwargs)
+
+
+class FetchEnricher(ParamsEnricher):
     """Not registered itself; concrete enrichers subclass it and add @flowsint_enricher."""
 
     RELATIONSHIP = "RELATED_TO"

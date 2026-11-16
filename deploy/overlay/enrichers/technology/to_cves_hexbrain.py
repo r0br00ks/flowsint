@@ -1,8 +1,8 @@
 from typing import Any, Dict, List, Optional
 
-from flowsint_core.core.enricher_base import Enricher
 from flowsint_core.core.logger import Logger
 from flowsint_enrichers import dockerops_clients as dc
+from flowsint_enrichers.osint_base import ParamsEnricher
 from flowsint_enrichers.registry import flowsint_enricher
 from flowsint_types.cve import Cve
 from flowsint_types.technology import Technology
@@ -25,7 +25,7 @@ def _cve_dicts(node: Any) -> List[Dict[str, Any]]:
 
 
 @flowsint_enricher
-class TechnologyToCvesHexBrain(Enricher):
+class TechnologyToCvesHexBrain(ParamsEnricher):
     """[HexBrain] Known CVEs for a technology and version, from the dockerops HexBrain (needs HEXBRAIN_API_KEY on the container)."""
 
     InputType = Technology

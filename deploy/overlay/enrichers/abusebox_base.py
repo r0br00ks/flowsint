@@ -7,9 +7,9 @@ to the share of lists that do, and empty when the check was inconclusive.
 
 from typing import Any, Dict, List, Optional
 
-from flowsint_core.core.enricher_base import Enricher
 from flowsint_core.core.logger import Logger
 from flowsint_enrichers import dockerops_clients as dc
+from flowsint_enrichers.osint_base import ParamsEnricher
 from flowsint_types.reputation_score import ReputationScore
 
 
@@ -22,7 +22,7 @@ def _list_name(hit: Any) -> str:
     return str(hit)
 
 
-class AbuseBoxEnricher(Enricher):
+class AbuseBoxEnricher(ParamsEnricher):
     """Not registered itself; concrete enrichers subclass it and add @flowsint_enricher."""
 
     ENTITY_TYPE = "ip"
