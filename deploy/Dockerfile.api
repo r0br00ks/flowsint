@@ -1,7 +1,10 @@
 # Upstream flowsint-api image plus the openai SDK, which the image does not ship.
 # Flo (the AI assistant) reaches MiniMax through Flowsint's OpenAI provider, which needs it.
+# patch_think.py then strips MiniMax's <think> blocks from non-streamed replies.
 ARG FLOWSINT_VERSION=1.2.13
 FROM ghcr.io/reconurge/flowsint-api:${FLOWSINT_VERSION}
 USER root
 RUN pip --python /app/.venv/bin/python install --no-cache-dir openai==3.51.0
+COPY patch_think.py /tmp/patch_think.py
+RUN /app/.venv/bin/python /tmp/patch_think.py && rm /tmp/patch_think.py
 USER flowsint
