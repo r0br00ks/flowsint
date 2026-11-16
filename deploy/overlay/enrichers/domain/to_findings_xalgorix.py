@@ -110,6 +110,12 @@ class DomainToFindingsXalgorix(ActiveEnricher):
                 Logger.warn(self.sketch_id, {"message": f"[Xalgorix] {domain}: scan still {status} after the wait; run this enricher again later to collect its findings"})
             elif status == "paused":
                 Logger.warn(self.sketch_id, {"message": f"[Xalgorix] {domain}: scan is paused ({detail.get('stop_reason') or 'no reason given'}); it was not resumed"})
+            # Xalgorix reports status "finished" even when its model failed mid-run; stop_reason and the phase table say so.
+            reason = str(detail.get("stop_reason") or "")
+            todo = sorted((k for k, v in (detail.get("phase_status") or {}).items() if v in ("pending", "running")), key=lambda k: int(k) if str(k).isdigit() else 99)
+            if reason and reason.lower() not in ("completed", "finished", "done", "success") and status not in xc.RUNNING:
+                Logger.warn(self.sketch_id, {"message": f"[Xalgorix] {domain}: scan ended early ({reason}); phases not completed: {', '.join(todo) or 'none listed'}. The findings below may be incomplete."})
+                note += f"; ended early: {reason}"
             return {"detail": detail, "note": note, "min_severity": sev}
 
     def build(self, item, data: Dict[str, Any]) -> List[Finding]:
@@ -136,6 +142,12 @@ class DomainToFindingsXalgorix(ActiveEnricher):
                     date=date.today().isoformat(),
                     url=f"{xc.base_url()}/scans/{d.get('instance_id') or scan_id}",
                     source="Xalgorix",
+                    # Finding allows extra properties; Xalgorix reports a CVSS score and a CWE rather than a CVE.
+                    cvss=_first(v, "cvss"),
+                    cwe=_first(v, "cwe_id", "cwe"),
+                    description=(str(_first(v, "description"))[:600] if _first(v, "description") else None),
+                    remediation=(str(_first(v, "remediation", "fix"))[:600] if _first(v, "remediation", "fix") else None),
+                    verification=_first(v, "verification_method"),
                 )
             )
         self.log_graph_message(f"{item.domain}: Xalgorix scan {scan_id} is {d.get('status')} with {len(d.get('vulns') or [])} finding(s); {data['note']}.")
