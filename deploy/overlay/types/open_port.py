@@ -29,5 +29,6 @@ class OpenPort(FlowsintType):
 
     @model_validator(mode="after")
     def compute_label(self) -> Self:
-        self.nodeLabel = f"{self.endpoint} {self.service}".strip() if self.service else self.endpoint
+        # Flowsint merges nodes on the label, so keep it identical whichever tool saw the port; the service is a property.
+        self.nodeLabel = self.endpoint
         return self
