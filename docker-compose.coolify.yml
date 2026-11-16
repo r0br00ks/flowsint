@@ -73,6 +73,9 @@ services:
       - AUTH_SECRET=${FLOWSINT_AUTH_SECRET:?set in Coolify}
       - MASTER_VAULT_KEY_V1=${FLOWSINT_MASTER_VAULT_KEY:?set in Coolify}
       - REDIS_URL=redis://redis:6379/0
+      # Flo (the AI assistant) uses Mistral. With no per-user vault key, Flowsint falls back to this.
+      - LLM_PROVIDER=mistral
+      - MISTRAL_API_KEY=${FLOWSINT_MISTRAL_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
