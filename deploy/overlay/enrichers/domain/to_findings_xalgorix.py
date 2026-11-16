@@ -10,7 +10,9 @@ from flowsint_enrichers.registry import flowsint_enricher
 from flowsint_types.domain import Domain
 from flowsint_types.finding import Finding
 
-PHASES = {"recon_only": [1, 22], "all": []}
+# Phase ids are Xalgorix's methodology list. light_active leaves out injection, authentication, file upload,
+# deserialization/RCE, race conditions and exploit verification, which can disturb a live business site.
+PHASES = {"recon_only": [1, 22], "light_active": [1, 3, 4, 13, 14, 15, 22], "all": []}
 SEVERITIES = {"info": ["info", "low", "medium", "high", "critical"], "low": ["low", "medium", "high", "critical"], "medium": ["medium", "high", "critical"], "high": ["high", "critical"]}
 
 
@@ -58,10 +60,10 @@ class DomainToFindingsXalgorix(ActiveEnricher):
             {
                 "name": "phases",
                 "type": "select",
-                "description": "recon_only runs reconnaissance and the final report. all runs every methodology phase (long).",
+                "description": "recon_only: reconnaissance and report. light_active: also directory discovery, CORS and cookies, subdomain takeover, open redirect and email security (no injection, upload or exploit tests). all: every phase, including intrusive ones (long).",
                 "required": False,
                 "default": "recon_only",
-                "options": [{"label": "Recon and report only", "value": "recon_only"}, {"label": "All phases", "value": "all"}],
+                "options": [{"label": "Recon and report only", "value": "recon_only"}, {"label": "Light active (no injection or exploit tests)", "value": "light_active"}, {"label": "All phases (intrusive)", "value": "all"}],
             },
             {
                 "name": "min_severity",
