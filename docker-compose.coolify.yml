@@ -94,6 +94,8 @@ services:
       - HEXBRAIN_API_KEY=${FLOWSINT_HEXBRAIN_API_KEY:-}
       - DEFECTDOJO_URL=${FLOWSINT_DEFECTDOJO_URL:-https://ddojo.techbrooks.ca}
       - DEFECTDOJO_API_TOKEN=${FLOWSINT_DEFECTDOJO_API_TOKEN:-}
+      - SHODAN_API_KEY=${FLOWSINT_SHODAN_API_KEY:-}
+      - GITHUB_TOKEN=${FLOWSINT_GITHUB_TOKEN:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -142,6 +144,8 @@ services:
       - HEXBRAIN_API_KEY=${FLOWSINT_HEXBRAIN_API_KEY:-}
       - DEFECTDOJO_URL=${FLOWSINT_DEFECTDOJO_URL:-https://ddojo.techbrooks.ca}
       - DEFECTDOJO_API_TOKEN=${FLOWSINT_DEFECTDOJO_API_TOKEN:-}
+      - SHODAN_API_KEY=${FLOWSINT_SHODAN_API_KEY:-}
+      - GITHUB_TOKEN=${FLOWSINT_GITHUB_TOKEN:-}
     healthcheck:
       test: ["CMD-SHELL", "celery -A flowsint_core.core.celery inspect ping -d celery@$$HOSTNAME || exit 1"]
       interval: 30s

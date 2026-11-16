@@ -1,15 +1,23 @@
 # Upstream flowsint-api image plus the changes this deployment needs:
 #  - the openai SDK, which the image does not ship (Flo reaches MiniMax through Flowsint's OpenAI provider)
 #  - patch_think.py strips MiniMax's <think> blocks from non-streamed replies
-#  - overlay/ adds enrichers for the tools on dockerops (SpiderFoot, AbuseBox, HexBrain, DefectDojo) and the
-#    Cve and Finding entity types; patch_categories.py lists those types in the UI picker
+#  - overlay/ adds enrichers for the tools on dockerops (SpiderFoot, AbuseBox, HexBrain, DefectDojo), free data
+#    sources and command-line tools, plus the Cve, Finding and OpenPort entity types
+#  - patch_categories.py lists those types in the UI picker
+#  - command-line tools run inside this image because the Docker socket is deliberately not mounted:
+#    the six ProjectDiscovery tools (pinned, checksum-verified) and nmap, whatweb, wafw00f, sslscan from apt;
+#    patch_dockertool.py makes upstream's Docker wrappers use the local binaries
 # Used by both the api and celery services so enrichers (which run in celery) see the same code.
 ARG FLOWSINT_VERSION=1.2.13
 FROM ghcr.io/reconurge/flowsint-api:${FLOWSINT_VERSION}
 USER root
 RUN pip --python /app/.venv/bin/python install --no-cache-dir openai==3.51.0
-COPY patch_think.py patch_categories.py /tmp/
-RUN /app/.venv/bin/python /tmp/patch_think.py && /app/.venv/bin/python /tmp/patch_categories.py && rm /tmp/patch_think.py /tmp/patch_categories.py
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends nmap whatweb wafw00f sslscan unzip libpcap0.8t64 \
+ && rm -rf /var/lib/apt/lists/*
+RUN set -eux; cd /tmp;     for spec in subfinder:2.17.0 dnsx:1.3.1 httpx:1.12.0 naabu:2.7.0 asnmap:1.2.0 mapcidr:1.1.97; do       n="${spec%%:*}"; v="${spec##*:}"; z="${n}_${v}_linux_amd64.zip"; base="https://github.com/projectdiscovery/$n/releases/download/v$v";       curl -fsSL -o "$z" "$base/$z";       case "$n" in naabu) sum="naabu-checksums.txt";; *) sum="${n}_${v}_checksums.txt";; esac; curl -fsSL -o "$n.sum" "$base/$sum";       grep " $z\$" "$n.sum" | sha256sum -c -;       unzip -o "$z" "$n" -d /usr/local/bin; chmod 755 "/usr/local/bin/$n"; rm -f "$z" "$n.sum";     done
+COPY patch_think.py patch_categories.py patch_dockertool.py /tmp/
+RUN /app/.venv/bin/python /tmp/patch_think.py && /app/.venv/bin/python /tmp/patch_categories.py && /app/.venv/bin/python /tmp/patch_dockertool.py && rm /tmp/patch_think.py /tmp/patch_categories.py /tmp/patch_dockertool.py
 COPY overlay/enrichers/ /app/flowsint-enrichers/src/flowsint_enrichers/
 COPY overlay/types/ /app/flowsint-types/src/flowsint_types/
 USER flowsint
