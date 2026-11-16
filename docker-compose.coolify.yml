@@ -6,9 +6,9 @@
 #  - The /var/run/docker.sock mounts are removed. Upstream uses them only so six scanning
 #    enrichers (subfinder, dnsx, httpx, mapcidr, naabu, asnmap) can launch tool containers.
 #    Those six fail with "Failed to connect to Docker daemon" until the socket decision changes.
-#  - container_name is removed. The nginx.conf mount is replaced by deploy/nginx.coolify.conf,
-#    which is the image's own config plus the Tailscale address in the Host allowlist.
-#    Without it nginx answers 403 to any Host other than localhost.
+#  - container_name is removed. The app container starts nginx on a /tmp copy of the image's own
+#    config with FLOWSINT_ALLOWED_HOST_RE added to the Host allowlist. Without it nginx answers
+#    403 to any Host other than localhost. Coolify sets the variable to the Tailscale address.
 #  - Secrets come from Coolify env (no defaults), so nothing secret is in this repo.
 name: flowsint
 
@@ -129,10 +129,17 @@ services:
     restart: unless-stopped
     ports:
       - "${FLOWSINT_BIND_IP:-127.0.0.1}:${FLOWSINT_HOST_PORT:-2920}:8080"
-    volumes:
-      # Copy of the 1.2.13 image's nginx.conf with the Tailscale address added to the
-      # Host allowlist (DNS-rebinding defence). Re-derive it from the image on a version bump.
-      - ./deploy/nginx.coolify.conf:/etc/nginx/nginx.conf:ro
+    environment:
+      # Regex for the Host header nginx will accept besides localhost (DNS-rebinding defence).
+      - FLOWSINT_ALLOWED_HOST_RE=${FLOWSINT_ALLOWED_HOST_RE:-localhost}
+    # The image's nginx.conf allows only localhost Hosts and answers 403 otherwise. Coolify's
+    # build host does not keep repo files, so a bind-mounted conf fails. Instead, copy the
+    # image's own conf to /tmp with one extra allowlist line, then start nginx on that copy.
+    command:
+      - /bin/sh
+      - -c
+      - |
+        awk '{print} /^ *default 0;/ {printf "        \"~*^%s(:[0-9]+)?$$\" 1;\n", ENVIRON["FLOWSINT_ALLOWED_HOST_RE"]}' /etc/nginx/nginx.conf > /tmp/nginx.conf && exec nginx -g 'daemon off;' -c /tmp/nginx.conf
     depends_on:
       api:
         condition: service_healthy
