@@ -1,0 +1,140 @@
+# Coolify deployment of Flowsint on the Dockerfarm (dockerops).
+# Derived from upstream docker-compose.prod.yml. Changes, and why:
+#  - Only the UI is published. Postgres, Redis, Neo4j and the API stay on the compose network.
+#  - The UI binds FLOWSINT_BIND_IP:FLOWSINT_HOST_PORT. The default is loopback so a lost
+#    variable fails closed. Coolify sets the Tailscale address.
+#  - The /var/run/docker.sock mounts are removed. Upstream uses them only so six scanning
+#    enrichers (subfinder, dnsx, httpx, mapcidr, naabu, asnmap) can launch tool containers.
+#    Those six fail with "Failed to connect to Docker daemon" until the socket decision changes.
+#  - container_name and the nginx.conf bind mount are removed. The image's baked-in nginx.conf
+#    already proxies /api/ to the api service.
+#  - Secrets come from Coolify env (no defaults), so nothing secret is in this repo.
+name: flowsint
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: flowsint
+      POSTGRES_PASSWORD: ${FLOWSINT_POSTGRES_PASSWORD:?set in Coolify}
+      POSTGRES_DB: flowsint
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowsint"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  neo4j:
+    image: neo4j:5
+    restart: unless-stopped
+    environment:
+      - NEO4J_AUTH=neo4j/${FLOWSINT_NEO4J_PASSWORD:?set in Coolify}
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_apoc_export_file_enabled=true
+      - NEO4J_apoc_import_file_enabled=true
+      - NEO4J_apoc_import_file_use__neo4j__config=true
+      # Bounded so it is a good neighbour on a shared host.
+      - NEO4J_server_memory_heap_initial__size=512m
+      - NEO4J_server_memory_heap_max__size=1g
+      - NEO4J_server_memory_pagecache_size=512m
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - neo4j_import:/var/lib/neo4j/import
+      - neo4j_plugins:/plugins
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p \"${FLOWSINT_NEO4J_PASSWORD}\" \"RETURN 1\""]
+      interval: 10s
+      timeout: 20s
+      retries: 10
+      start_period: 60s
+
+  api:
+    image: ghcr.io/reconurge/flowsint-api:${FLOWSINT_VERSION:-1.2.13}
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://flowsint:${FLOWSINT_POSTGRES_PASSWORD}@postgres:5432/flowsint
+      - NEO4J_URI_BOLT=bolt://neo4j:7687
+      - NEO4J_USERNAME=neo4j
+      - NEO4J_PASSWORD=${FLOWSINT_NEO4J_PASSWORD}
+      - AUTH_SECRET=${FLOWSINT_AUTH_SECRET:?set in Coolify}
+      - MASTER_VAULT_KEY_V1=${FLOWSINT_MASTER_VAULT_KEY:?set in Coolify}
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  celery:
+    image: ghcr.io/reconurge/flowsint-api:${FLOWSINT_VERSION:-1.2.13}
+    restart: unless-stopped
+    command:
+      [
+        "celery",
+        "-A",
+        "flowsint_core.core.celery",
+        "worker",
+        "--loglevel=info",
+        "--pool=threads",
+        "--concurrency=10",
+      ]
+    environment:
+      - DATABASE_URL=postgresql://flowsint:${FLOWSINT_POSTGRES_PASSWORD}@postgres:5432/flowsint
+      - NEO4J_URI_BOLT=bolt://neo4j:7687
+      - NEO4J_USERNAME=neo4j
+      - NEO4J_PASSWORD=${FLOWSINT_NEO4J_PASSWORD}
+      - MASTER_VAULT_KEY_V1=${FLOWSINT_MASTER_VAULT_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - SKIP_MIGRATIONS=true
+      - AUTH_SECRET=${FLOWSINT_AUTH_SECRET}
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A flowsint_core.core.celery inspect ping -d celery@$$HOSTNAME || exit 1"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+
+  app:
+    image: ghcr.io/reconurge/flowsint-app:${FLOWSINT_VERSION:-1.2.13}
+    restart: unless-stopped
+    ports:
+      - "${FLOWSINT_BIND_IP:-127.0.0.1}:${FLOWSINT_HOST_PORT:-2920}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pg_data:
+  neo4j_data:
+  neo4j_logs:
+  neo4j_import:
+  neo4j_plugins:
