@@ -33,15 +33,16 @@ IP_STEPS = [
     "ip_to_technologies_internetdb", "ip_to_hostnames_internetdb", "ip_to_greynoise", "ip_to_otx",
     "ip_to_blacklist_abusebox", "ip_to_ports_shodan",
 ]
-WEBSITE_STEPS = ["website_to_security_headers", "website_to_tls_sslscan", "website_to_technologies_whatweb"]
+WEBSITE_STEPS = ["website_to_security_headers", "website_to_tls_sslscan", "website_to_technologies_whatweb", "website_to_wallets", "website_to_emails", "website_to_phones"]
 SHARED_RULES: Dict[str, List[str]] = {
     "Ip": IP_STEPS,
     "Website": WEBSITE_STEPS,
     "Technology": ["technology_to_cves_hexbrain"],
-    "Cve": ["cve_to_findings_defectdojo"],
+    "Cve": ["cve_to_findings_defectdojo", "cve_to_epss_kev"],
+    "Email": ["email_to_username", "email_to_gravatar", "email_to_github_accounts"],
 }
 # Outputs of these are leaves: not fed forward (archived URLs and code hits are not live targets).
-NO_FOLLOW = {"domain_to_wayback_urls", "domain_to_github_code", "ip_to_ports_internetdb", "ip_to_ports_shodan"}
+NO_FOLLOW = {"domain_to_tld_variants", "domain_to_wayback_urls", "domain_to_github_code", "ip_to_ports_internetdb", "ip_to_ports_shodan"}
 
 
 async def cdn_networks() -> List[Any]:
