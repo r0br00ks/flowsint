@@ -148,6 +148,10 @@ services:
       - DEFECTDOJO_API_TOKEN=${FLOWSINT_DEFECTDOJO_API_TOKEN:-}
       - SHODAN_API_KEY=${FLOWSINT_SHODAN_API_KEY:-}
       - GITHUB_TOKEN=${FLOWSINT_GITHUB_TOKEN:-}
+      # LLM for the *_llm enrichers (they send text to this provider, so machines never run them). Same values as the api service.
+      - OPENAI_API_KEY=${FLOWSINT_LLM_API_KEY:-}
+      - OPENAI_BASE_URL=${FLOWSINT_LLM_BASE_URL:-https://api.minimax.io/v1}
+      - LLM_MODEL=${FLOWSINT_LLM_MODEL:-MiniMax-M3}
       # Xalgorix scanner (worker only: enrichers run here). Copies of Bitwarden XALGORIX__USERNAME and XALGORIX__PASSWORD.
       - XALGORIX_URL=${FLOWSINT_XALGORIX_URL:-http://100.93.251.35:2903}
       - XALGORIX_USERNAME=${FLOWSINT_XALGORIX_USERNAME:-}

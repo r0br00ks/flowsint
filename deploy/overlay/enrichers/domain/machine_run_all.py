@@ -17,7 +17,7 @@ from flowsint_types.ip import Ip
 from flowsint_types.username import Username
 from flowsint_types.website import Website
 
-SKIP_WORDS = ("dummy", "spiderfoot", "dehashed", "whois_history", "domain_to_history", "socials_maigret", "socials_sherlock", "xalgorix")
+SKIP_WORDS = ("_llm", "dummy", "spiderfoot", "dehashed", "whois_history", "domain_to_history", "socials_maigret", "socials_sherlock", "xalgorix")
 # ip_to_ports is a naabu port scan (active, though upstream does not mark it so); cidr_to_ips would fan a network range out
 # into unrelated addresses; the crawler follows links across a whole site.
 SKIP_NAMES = {"n8n_connector", "ip_to_ports", "cidr_to_ips", "website_to_crawler"}
